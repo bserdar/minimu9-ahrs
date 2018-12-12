@@ -14,35 +14,41 @@ minimu9::comm_config minimu9::auto_detect(const std::string & i2c_bus_name)
 
   // Detect LSM6 devices.
   {
-    auto addrs = { lsm6::SA0_LOW_ADDR, lsm6::SA0_HIGH_ADDR };
-    for (uint8_t addr : addrs)
+    int result = bus.try_write_byte_and_read_byte(lsm6::SA0_LOW_ADDR, lsm6::WHO_AM_I);
+    if (result == lsm6::LSM6DS33)
     {
-      int result = bus.try_write_byte_and_read_byte(addr, lsm6::WHO_AM_I);
-      if (result == lsm6::LSM6DS33)
-      {
-        config.lsm6.use_sensor = true;
-        config.lsm6.device = (lsm6::device_type)result;
-        config.lsm6.i2c_bus_name = i2c_bus_name;
-        config.lsm6.i2c_address = (lsm6::i2c_addr)addr;
-        break;
-      }
+      config.lsm6lo.use_sensor = true;
+      config.lsm6lo.device = (lsm6::device_type)result;
+      config.lsm6lo.i2c_bus_name = i2c_bus_name;
+      config.lsm6lo.i2c_address = (lsm6::i2c_addr)lsm6::SA0_LOW_ADDR;
+    }
+    result = bus.try_write_byte_and_read_byte(lsm6::SA0_HIGH_ADDR, lsm6::WHO_AM_I);
+    if (result == lsm6::LSM6DS33)
+    {
+      config.lsm6hi.use_sensor = true;
+      config.lsm6hi.device = (lsm6::device_type)result;
+      config.lsm6hi.i2c_bus_name = i2c_bus_name;
+      config.lsm6hi.i2c_address = (lsm6::i2c_addr)lsm6::SA0_HIGH_ADDR;
     }
   }
 
   // Detect LIS3MDL devices.
   {
-    auto addrs = { lis3mdl::SA1_LOW_ADDR, lis3mdl::SA1_HIGH_ADDR };
-    for (uint8_t addr : addrs)
+    int result = bus.try_write_byte_and_read_byte(lis3mdl::SA1_LOW_ADDR, lis3mdl::WHO_AM_I);
+    if (result == lis3mdl::LIS3MDL)
     {
-      int result = bus.try_write_byte_and_read_byte(addr, lis3mdl::WHO_AM_I);
-      if (result == lis3mdl::LIS3MDL)
-      {
-        config.lis3mdl.use_sensor = true;
-        config.lis3mdl.device = (lis3mdl::device_type)result;
-        config.lis3mdl.i2c_bus_name = i2c_bus_name;
-        config.lis3mdl.i2c_address = (lis3mdl::i2c_addr)addr;
-        break;
-      }
+      config.lis3mdllo.use_sensor = true;
+      config.lis3mdllo.device = (lis3mdl::device_type)result;
+      config.lis3mdllo.i2c_bus_name = i2c_bus_name;
+      config.lis3mdllo.i2c_address = (lis3mdl::i2c_addr)lis3mdl::SA1_LOW_ADDR;
+    }
+    result = bus.try_write_byte_and_read_byte(lis3mdl::SA1_HIGH_ADDR, lis3mdl::WHO_AM_I);
+    if (result == lis3mdl::LIS3MDL)
+    {
+      config.lis3mdlhi.use_sensor = true;
+      config.lis3mdlhi.device = (lis3mdl::device_type)result;
+      config.lis3mdlhi.i2c_bus_name = i2c_bus_name;
+      config.lis3mdlhi.i2c_address = (lis3mdl::i2c_addr)lis3mdl::SA1_HIGH_ADDR;
     }
   }
 
@@ -54,17 +60,23 @@ minimu9::comm_config minimu9::auto_detect(const std::string & i2c_bus_name)
       l3g::L3G4200D_SA0_LOW_ADDR,
       l3g::L3G4200D_SA0_HIGH_ADDR,
     };
+      
     for (uint8_t addr : addrs)
     {
       int result = bus.try_write_byte_and_read_byte(addr, l3g::WHO_AM_I);
       if (result == l3g::L3G4200D || result == l3g::L3GD20
         || result == l3g::L3GD20H)
       {
-        config.l3g.use_sensor = true;
-        config.l3g.device = (l3g::device_type)result;
-        config.l3g.i2c_bus_name = i2c_bus_name;
-        config.l3g.i2c_address = (l3g::i2c_addr)addr;
-        break;
+        auto c=&config.l3glo;
+        if (addr==l3g::L3GD20_SA0_HIGH_ADDR || addr==l3g::L3G4200D_SA0_HIGH_ADDR) {
+          c=&config.l3ghi;
+        }
+
+        c->use_sensor = true;
+        c->device = (l3g::device_type)result;
+        c->i2c_bus_name = i2c_bus_name;
+        c->i2c_address = (l3g::i2c_addr)addr;
+
       }
     }
   }
@@ -148,13 +160,13 @@ sensor_set minimu9::config_sensor_set(const comm_config & config)
 {
   sensor_set set;
 
-  if (config.lsm6.use_sensor)
+  if (config.lsm6lo.use_sensor || config.lsm6hi.use_sensor)
   {
     set.acc = true;
     set.gyro = true;
   }
 
-  if (config.lis3mdl.use_sensor)
+  if (config.lis3mdllo.use_sensor||config.lis3mdlhi.use_sensor)
   {
     set.mag = true;
   }
@@ -165,7 +177,7 @@ sensor_set minimu9::config_sensor_set(const comm_config & config)
     set.acc = true;
   }
 
-  if (config.l3g.use_sensor)
+  if (config.l3glo.use_sensor||config.l3ghi.use_sensor)
   {
     set.gyro = true;
   }
@@ -182,9 +194,9 @@ minimu9::comm_config minimu9::disable_redundant_sensors(
 
   if (!(missing.acc || missing.gyro))
   {
-    config.lsm6.use_sensor = false;
+    config.lsm6lo.use_sensor = config.lsm6hi.use_sensor=false;
   }
-  else if (config.lsm6.use_sensor)
+  else if (config.lsm6lo.use_sensor || config.lsm6hi.use_sensor)
   {
     missing.acc = false;
     missing.gyro = false;
@@ -192,9 +204,9 @@ minimu9::comm_config minimu9::disable_redundant_sensors(
 
   if (!missing.mag)
   {
-    config.lis3mdl.use_sensor = false;
+    config.lis3mdllo.use_sensor = config.lis3mdlhi.use_sensor= false;
   }
-  else if (config.lis3mdl.use_sensor)
+  else if (config.lis3mdllo.use_sensor||config.lis3mdlhi.use_sensor)
   {
     missing.mag = false;
   }
@@ -211,9 +223,9 @@ minimu9::comm_config minimu9::disable_redundant_sensors(
 
   if (!missing.gyro)
   {
-    config.l3g.use_sensor = false;
+    config.l3glo.use_sensor = config.l3ghi.use_sensor= false;
   }
-  else if (config.l3g.use_sensor)
+  else if (config.l3glo.use_sensor||config.l3ghi.use_sensor)
   {
     missing.gyro = false;
   }
@@ -225,14 +237,22 @@ void minimu9::handle::open(const comm_config & config)
 {
   this->config = config;
 
-  if (config.lsm6.use_sensor)
+  if (config.lsm6lo.use_sensor)
   {
-    lsm6.open(config.lsm6);
+    lsm6lo.open(config.lsm6lo);
+  }
+  if (config.lsm6hi.use_sensor)
+  {
+    lsm6hi.open(config.lsm6hi);
   }
 
-  if (config.lis3mdl.use_sensor)
+  if (config.lis3mdllo.use_sensor)
   {
-    lis3mdl.open(config.lis3mdl);
+    lis3mdllo.open(config.lis3mdllo);
+  }
+  if (config.lis3mdlhi.use_sensor)
+  {
+    lis3mdlhi.open(config.lis3mdlhi);
   }
 
   if (config.lsm303.use_sensor)
@@ -240,22 +260,34 @@ void minimu9::handle::open(const comm_config & config)
     lsm303.open(config.lsm303);
   }
 
-  if (config.l3g.use_sensor)
+  if (config.l3glo.use_sensor)
   {
-    l3g.open(config.l3g);
+    l3glo.open(config.l3glo);
+  }
+  if (config.l3ghi.use_sensor)
+  {
+    l3ghi.open(config.l3ghi);
   }
 }
 
 void minimu9::handle::enable()
 {
-  if (config.lsm6.use_sensor)
+  if (config.lsm6lo.use_sensor)
   {
-    lsm6.enable();
+    lsm6lo.enable();
+  }
+  if (config.lsm6hi.use_sensor)
+  {
+    lsm6hi.enable();
   }
 
-  if (config.lis3mdl.use_sensor)
+  if (config.lis3mdllo.use_sensor)
   {
-    lis3mdl.enable();
+    lis3mdllo.enable();
+  }
+  if (config.lis3mdlhi.use_sensor)
+  {
+    lis3mdlhi.enable();
   }
 
   if (config.lsm303.use_sensor)
@@ -263,9 +295,13 @@ void minimu9::handle::enable()
     lsm303.enable();
   }
 
-  if (config.l3g.use_sensor)
+  if (config.l3glo.use_sensor)
   {
-    l3g.enable();
+    l3glo.enable();
+  }
+  if (config.l3ghi.use_sensor)
+  {
+    l3ghi.enable();
   }
 }
 
@@ -291,15 +327,23 @@ void minimu9::handle::load_calibration()
 
 void minimu9::handle::read_mag_raw()
 {
-  if (config.lis3mdl.use_sensor)
+  if (config.lis3mdllo.use_sensor||config.lis3mdlhi.use_sensor)
   {
-    lis3mdl.read();
-    for (int i = 0; i < 3; i++) { m[i] = lis3mdl.m[i]; }
+    if (config.lis3mdllo.use_sensor)
+    {
+      lis3mdllo.read();
+      for (int i = 0; i < 3; i++) { mlo[i] = lis3mdllo.m[i]; }
+    }
+    if (config.lis3mdlhi.use_sensor)
+    {
+      lis3mdlhi.read();
+      for (int i = 0; i < 3; i++) { mhi[i] = lis3mdlhi.m[i]; }
+    }
   }
   else if (config.lsm303.use_sensor)
   {
     lsm303.read_mag();
-    for (int i = 0; i < 3; i++) { m[i] = lsm303.m[i]; }
+    for (int i = 0; i < 3; i++) { mlo[i] = lsm303.m[i]; }
   }
   else
   {
@@ -309,15 +353,23 @@ void minimu9::handle::read_mag_raw()
 
 void minimu9::handle::read_acc_raw()
 {
-  if (config.lsm6.use_sensor)
+  if (config.lsm6lo.use_sensor||config.lsm6hi.use_sensor)
   {
-    lsm6.read_acc();
-    for (int i = 0; i < 3; i++) { a[i] = lsm6.a[i]; }
+    if (config.lsm6lo.use_sensor)
+    {
+      lsm6lo.read_acc();
+      for (int i = 0; i < 3; i++) { alo[i] = lsm6lo.a[i]; }
+    }
+    if (config.lsm6hi.use_sensor)
+    {
+      lsm6hi.read_acc();
+      for (int i = 0; i < 3; i++) { ahi[i] = lsm6hi.a[i]; }
+    }
   }
   else if (config.lsm303.use_sensor)
   {
     lsm303.read_acc();
-    for (int i = 0; i < 3; i++) { a[i] = lsm303.a[i]; }
+    for (int i = 0; i < 3; i++) { alo[i] = lsm303.a[i]; }
   }
   else
   {
@@ -327,15 +379,32 @@ void minimu9::handle::read_acc_raw()
 
 void minimu9::handle::read_gyro_raw()
 {
-  if (config.lsm6.use_sensor)
+  if (config.lsm6lo.use_sensor||config.lsm6hi.use_sensor)
   {
-    lsm6.read_gyro();
-    for (int i = 0; i < 3; i++) { g[i] = lsm6.g[i]; }
+    if (config.lsm6lo.use_sensor)
+    {
+      lsm6lo.read_gyro();
+      for (int i = 0; i < 3; i++) { glo[i] = lsm6lo.g[i]; }
+    }
+    if (config.lsm6hi.use_sensor)
+    {
+      lsm6hi.read_gyro();
+      for (int i = 0; i < 3; i++) { ghi[i] = lsm6hi.g[i]; }
+    }
+    
   }
-  else if (config.l3g.use_sensor)
+  else if (config.l3glo.use_sensor||config.l3ghi.use_sensor)
   {
-    l3g.read();
-    for (int i = 0; i < 3; i++) { g[i] = l3g.g[i]; }
+    if(config.l3glo.use_sensor)
+    {
+      l3glo.read();
+      for (int i = 0; i < 3; i++) { glo[i] = l3glo.g[i]; }
+    }
+    if(config.l3ghi.use_sensor)
+    {
+      l3ghi.read();
+      for (int i = 0; i < 3; i++) { ghi[i] = l3ghi.g[i]; }
+    }
   }
   else
   {
@@ -367,15 +436,18 @@ float minimu9::handle::get_gyro_scale() const
 void minimu9::handle::measure_offsets()
 {
   // LSM303 accelerometer: 8 g sensitivity.  3.8 mg/digit; 1 g = 256.
-  gyro_offset = vector::Zero();
+  gyro_offset_lo = vector::Zero();
+  gyro_offset_hi = vector::Zero();
   const int sampleCount = 32;
   for(int i = 0; i < sampleCount; i++)
   {
     read_gyro_raw();
-    gyro_offset += vector_from_ints(&g);
+    gyro_offset_lo += vector_from_ints(&glo);
+    gyro_offset_hi += vector_from_ints(&ghi);
     usleep(20 * 1000);
   }
-  gyro_offset /= sampleCount;
+  gyro_offset_lo /= sampleCount;
+  gyro_offset_hi /= sampleCount;
 }
 
 vector minimu9::handle::read_mag()
@@ -383,20 +455,43 @@ vector minimu9::handle::read_mag()
   read_mag_raw();
 
   vector v;
-  v(0) = (float)(m[0] - mag_min(0)) / (mag_max(0) - mag_min(0)) * 2 - 1;
-  v(1) = (float)(m[1] - mag_min(1)) / (mag_max(1) - mag_min(1)) * 2 - 1;
-  v(2) = (float)(m[2] - mag_min(2)) / (mag_max(2) - mag_min(2)) * 2 - 1;
+  v(0) = (float)(mlo[0] - mag_min(0)) / (mag_max(0) - mag_min(0)) * 2 - 1;
+  v(1) = (float)(mlo[1] - mag_min(1)) / (mag_max(1) - mag_min(1)) * 2 - 1;
+  v(2) = (float)(mlo[2] - mag_min(2)) / (mag_max(2) - mag_min(2)) * 2 - 1;
+  return v;
+}
+
+vector minimu9::handle::read_mag_hi()
+{
+  read_mag_raw();
+
+  vector v;
+  v(0) = (float)(mhi[0] - mag_min(0)) / (mag_max(0) - mag_min(0)) * 2 - 1;
+  v(1) = (float)(mhi[1] - mag_min(1)) / (mag_max(1) - mag_min(1)) * 2 - 1;
+  v(2) = (float)(mhi[2] - mag_min(2)) / (mag_max(2) - mag_min(2)) * 2 - 1;
   return v;
 }
 
 vector minimu9::handle::read_acc()
 {
   read_acc_raw();
-  return vector_from_ints(&a) * get_acc_scale();
+  return vector_from_ints(&alo) * get_acc_scale();
+}
+
+vector minimu9::handle::read_acc_hi()
+{
+  read_acc_raw();
+  return vector_from_ints(&ahi) * get_acc_scale();
 }
 
 vector minimu9::handle::read_gyro()
 {
   read_gyro_raw();
-  return (vector_from_ints(&g) - gyro_offset) * get_gyro_scale();
+  return (vector_from_ints(&glo) - gyro_offset_lo) * get_gyro_scale();
+}
+
+vector minimu9::handle::read_gyro_hi()
+{
+  read_gyro_raw();
+  return (vector_from_ints(&ghi) - gyro_offset_hi) * get_gyro_scale();
 }

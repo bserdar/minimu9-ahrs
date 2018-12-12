@@ -19,9 +19,12 @@ public:
   virtual float get_acc_scale() const = 0;
   virtual float get_gyro_scale() const = 0;
 
-  int32_t m[3];
-  int32_t a[3];
-  int32_t g[3];
+  int32_t mlo[3];
+  int32_t mhi[3];
+  int32_t alo[3];
+  int32_t ahi[3];
+  int32_t glo[3];
+  int32_t ghi[3];
 
   // TODO: remove stuff below this point
 
@@ -35,6 +38,6 @@ public:
   virtual void enable() = 0;
   virtual void load_calibration() = 0;
 
-  vector gyro_offset;
+  vector gyro_offset_lo,gyro_offset_hi;
   int_vector mag_min, mag_max;
 };

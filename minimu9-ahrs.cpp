@@ -70,10 +70,13 @@ void stream_raw_values(imu & imu)
   while(1)
   {
     imu.read_raw();
-    printf("%7d %7d %7d  %7d %7d %7d  %7d %7d %7d\n",
-           imu.m[0], imu.m[1], imu.m[2],
-           imu.a[0], imu.a[1], imu.a[2],
-           imu.g[0], imu.g[1], imu.g[2]
+    printf("%7d %7d %7d  %7d %7d %7d  %7d %7d %7d  %7d %7d %7d  %7d %7d %7d  %7d %7d %7d\n",
+           imu.mlo[0], imu.mlo[1], imu.mlo[2],
+           imu.mhi[0], imu.mhi[1], imu.mhi[2],
+           imu.alo[0], imu.alo[1], imu.alo[2],
+           imu.ahi[0], imu.ahi[1], imu.ahi[2],
+           imu.glo[0], imu.glo[1], imu.glo[2],
+           imu.ghi[0], imu.ghi[1], imu.ghi[2]
       );
     usleep(20*1000);
   }
