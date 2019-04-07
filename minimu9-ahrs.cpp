@@ -70,10 +70,13 @@ void stream_raw_values(imu & imu)
   while(1)
   {
     imu.read_raw();
-    printf("%7d %7d %7d  %7d %7d %7d  %7d %7d %7d\n",
-           imu.m[0], imu.m[1], imu.m[2],
-           imu.a[0], imu.a[1], imu.a[2],
-           imu.g[0], imu.g[1], imu.g[2]
+    printf("%7d %7d %7d  %7d %7d %7d  %7d %7d %7d  %7d %7d %7d  %7d %7d %7d  %7d %7d %7d\n",
+           imu.mlo[0], imu.mlo[1], imu.mlo[2],
+           imu.mhi[0], imu.mhi[1], imu.mhi[2],
+           imu.alo[0], imu.alo[1], imu.alo[2],
+           imu.ahi[0], imu.ahi[1], imu.ahi[2],
+           imu.glo[0], imu.glo[1], imu.glo[2],
+           imu.ghi[0], imu.ghi[1], imu.ghi[2]
       );
     usleep(20*1000);
   }
@@ -162,11 +165,12 @@ void ahrs(imu & imu, fuse_function * fuse, rotation_output_function * output)
 
   // The quaternion that can convert a vector in body coordinates
   // to ground coordinates when it its changed to a matrix.
-  quaternion rotation = quaternion::Identity();
+  quaternion rotation_lo = quaternion::Identity();
+  quaternion rotation_hi = quaternion::Identity();
 
-  // Set up a timer that expires every 20 ms.
+  // Set up a timer that expires every 5 ms.
   pacer loop_pacer;
-  loop_pacer.set_period_ns(20000000);
+  loop_pacer.set_period_ns(10000000);
 
   auto start = std::chrono::steady_clock::now();
   while(1)
@@ -177,16 +181,24 @@ void ahrs(imu & imu, fuse_function * fuse, rotation_output_function * output)
     float dt = duration.count() / 1e9;
     if (dt < 0){ throw std::runtime_error("Time went backwards."); }
 
-    vector angular_velocity = imu.read_gyro();
-    vector acceleration = imu.read_acc();
-    vector magnetic_field = imu.read_mag();
+    vector angular_velocity_lo = imu.read_gyro();
+    vector angular_velocity_hi = imu.read_gyro_hi();
+    vector acceleration_lo = imu.read_acc();
+    vector acceleration_hi = imu.read_acc_hi();
+    vector magnetic_field_lo = imu.read_mag();
+    vector magnetic_field_hi = imu.read_mag_hi();
 
-    fuse(rotation, dt, angular_velocity, acceleration, magnetic_field);
+    fuse(rotation_lo, dt, angular_velocity_lo, acceleration_lo, magnetic_field_lo);
+    fuse(rotation_hi, dt, angular_velocity_hi, acceleration_hi, magnetic_field_hi);
 
-    output(rotation);
-    std::cout << "  " << acceleration << "  " << magnetic_field << std::endl;
+    std::cout << "L ";
+    output(rotation_lo);
+    std::cout << "  " << acceleration_lo << "  " << magnetic_field_lo << " " << duration.count() / 1000000 << std::endl;
+    std::cout << "H ";
+    output(rotation_hi);
+    std::cout << "  " << acceleration_hi << "  " << magnetic_field_hi << " " << duration.count() / 1000000 << std::endl;
 
-    loop_pacer.pace();
+    //loop_pacer.pace();
   }
 }
 

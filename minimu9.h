@@ -17,9 +17,9 @@ namespace minimu9
   // Represents the sensors of the MinIMU-9 and how to communicate with them.
   struct comm_config {
     lsm303::comm_config lsm303;
-    l3g::comm_config l3g;
-    lis3mdl::comm_config lis3mdl;
-    lsm6::comm_config lsm6;
+    l3g::comm_config l3glo, l3ghi;
+    lis3mdl::comm_config lis3mdllo, lis3mdlhi;
+    lsm6::comm_config lsm6lo,lsm6hi;
   };
 
   comm_config auto_detect(const std::string & i2c_bus_name);
@@ -33,10 +33,10 @@ namespace minimu9
     void open(const comm_config &);
 
     comm_config config;
-    lsm6::handle lsm6;
-    lis3mdl::handle lis3mdl;
+    lsm6::handle lsm6lo,lsm6hi;
+    lis3mdl::handle lis3mdllo,lis3mdlhi;
     lsm303::handle lsm303;
-    l3g::handle l3g;
+    l3g::handle l3glo, l3ghi;
 
     virtual void read_acc_raw();
     virtual void read_mag_raw();
@@ -48,6 +48,10 @@ namespace minimu9
     virtual vector read_acc();
     virtual vector read_mag();
     virtual vector read_gyro();
+
+    virtual vector read_acc_hi();
+    virtual vector read_mag_hi();
+    virtual vector read_gyro_hi();
 
     virtual void enable();
     virtual void load_calibration();
