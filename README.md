@@ -1,5 +1,19 @@
 # minimu9-ahrs
 
+This is a fork of [DavidEGrayson/minimu9-ahrs](https://github.com/DavidEGrayson/minimu9-ahrs). It is modified to work with two MinIMU-9 boards.
+
+To connect two MinIMU-9 board, you have to connect the SA0 pin to GND
+on one of the boards. Normally SA0 is pulled high, connecting it to GND will
+pull the first address bit to low, so the program can distinguish the
+two sensors. Once you did that, simply connect the two boards in parallel,
+and use them.
+
+With the changes here, the program prints two lines for each reading, one
+prefixed with H and one with L, distinguishing the boards with the SA0=H and
+SA0=L. The original program wasn't architected to take this change nicely.
+Nevertheless, it works.
+
+
 **minimu9-ahrs** is a program for reading sensor data from the Pololu MinIMU-9
 and similar boards over I²C.  It supports the following sensor chips:
 
